@@ -119,8 +119,16 @@ async def async_setup(hass, config):
         _LOGGER.info("Speech: {}".format(result.response.speech["plain"]["speech"]))
 
         segments = service_regex.split(result.response.speech["plain"]["speech"])
+        content = ".  ".join([segment for segment in segments if start_token not in segment])
+
+        intent_response = intent.IntentResponse(language=user_input.language)
+        intent_response.async_set_speech(content)
+        return conversation.ConversationResult(
+            response=intent_response, conversation_id=result.conversation_id
+        )
+
         result.response.async_set_speech(
-            ".  ".join([segment for segment in segments if not start_token in segment]))
+            )
 
         return result
 
