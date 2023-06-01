@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Optional, Tuple
 import re
+import logging
 
 import voluptuous as vol
 import homeassistant.components.conversation
@@ -16,6 +17,8 @@ from .const import (
     DEFAULT_INTENT_NAME,
     DOMAIN
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -100,6 +103,8 @@ async def async_setup(hass, config):
     start_token = conf[ATTR_RESPONSE_PARSER_START]
     service_regex = re.compile("({}.+?{})".format(conf[ATTR_RESPONSE_PARSER_START], conf[ATTR_RESPONSE_PARSER_END]))
 
+    _LOGGER.info("Start token: {}".format(start_token))
+
     from homeassistant.components.openai_conversation import OpenAIAgent
 
     original = OpenAIAgent.async_process
@@ -107,13 +112,15 @@ async def async_setup(hass, config):
     async def async_process(self, user_input: conversation.ConversationInput) -> conversation.ConversationResult:
         """Handle OpenAI intent."""
         result = await original(self, user_input)
-
+        _LOGGER.info("Error code: {}".format(result.response.error_code))
         if result.response.error_code is not None:
             return result
 
+        _LOGGER.info("Speech: {}".format(result.response.speech["plain"]["speech"]))
+
         segments = service_regex.split(result.response.speech["plain"]["speech"])
         result.response.async_set_speech(
-            ".  ".join([segment for segment in segments if not segment.startswith(start_token)]))
+            ".  ".join([segment for segment in segments if not start_token in segment]))
 
         return result
 
