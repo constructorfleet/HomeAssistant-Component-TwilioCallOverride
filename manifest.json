@@ -1,0 +1,14 @@
+{
+  "domain": "openai_override",
+  "name": "OpenAI Override",
+  "documentation": "https://github.com/constructorfleet/HomeAssistant-Component-OpenAIOverride",
+  "version": "1.0.0",
+  "requirements": [
+  ],
+  "dependencies": [
+    "conversation"
+  ],
+  "codeowners": [
+    "@teagan42"
+  ]
+}
