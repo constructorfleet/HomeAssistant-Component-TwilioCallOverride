@@ -28,82 +28,8 @@ CONFIG_SCHEMA = vol.Schema({
     })
 }, extra=vol.ALLOW_EXTRA)
 
-
-#
-# class OpenAIIntentHandler(intent.IntentHandler):
-#     """OpenAI Intent handler registration."""
-#
-#     # We use a small timeout in service calls to (hopefully) pass validation
-#     # checks, but not try to wait for the call to fully complete.
-#     service_timeout: float = 0.2
-#
-#     slot_schema = {
-#         vol.Required("intentions"): vol.All(
-#             cv.ensure_list,
-#             [{
-#                 vol.Required("message"): cv.string,
-#                 vol.Optional("service_data"): cv.SERVICE_SCHEMA
-#             }]
-#         )
-#     }
-#
-#     def __init__(
-#             self, intent_type: str
-#     ) -> None:
-#         """Create OpenAI Intent Handler."""
-#         self.intent_type = intent_type
-#
-#     async def async_handle(self, intent_obj: intent.Intent) -> intent.IntentResponse:
-#         """Handle the hass intent."""
-#         hass = intent_obj.hass
-#         slots = self.async_validate_slots(intent_obj.slots)
-#
-#         success_results: list[intent.IntentResponseTarget] = []
-#         failed_results: list[intent.IntentResponseTarget] = []
-#         response = intent_obj.create_response()
-#
-#         for intention in slots.get("intentions", []):
-#             if intention.get("service", None) is None:
-#                 continue
-#
-#
-#
-#         return response
-#
-#     async def async_handle_intention(self, intent_obj: intent.Intent, intention: Dict[str, Any]) -> Tuple[bool, intent.IntentResponseTarget]:
-#         """Handle intention."""
-#         try:
-#             await self.async_call_service(intent_obj, intention.get('service'))
-#             return (True, intent.IntentResponseTarget(
-#                 type=intent.IntentResponseTargetType.ENTITY,
-#                 name=intention.get("service")
-#
-#             ))
-#         except Exception:
-#             return None
-#
-#     async def async_call_service(self, intent_obj: intent.Intent, service_intent: Dict[str, Any]) -> None:
-#         """Call service on entity."""
-#         hass = intent_obj.hass
-#         service = service_intent.pop("service")
-#         service_data = service_intent.pop("service_data")
-#         await hass.services.async_call(
-#             service.split(".")[0],
-#             service.split(".")[1],
-#             service_data,
-#             context=intent_obj.context,
-#             blocking=True,
-#             limit=self.service_timeout,
-#         )
-
-
 async def async_setup(hass, config):
     """Set up the openai_override component."""
-    conf = config[DOMAIN]
-    start_token = conf[ATTR_RESPONSE_PARSER_START]
-    service_regex = re.compile("({}.+?{})".format(conf[ATTR_RESPONSE_PARSER_START], conf[ATTR_RESPONSE_PARSER_END]))
-
-    _LOGGER.info("Start token: {}".format(start_token))
 
     from homeassistant.components.openai_conversation import OpenAIAgent
 
@@ -116,10 +42,27 @@ async def async_setup(hass, config):
         if result.response.error_code is not None:
             return result
 
-        _LOGGER.info("Speech: {}".format(result.response.speech["plain"]["speech"]))
+        import json
+        _LOGGER.info(json.dumps(result.response.speech))
 
-        segments = service_regex.split(result.response.speech["plain"]["speech"])
-        content = ".  ".join([segment for segment in segments if start_token not in segment])
+        content = ""
+        segments = result.response.speech["plain"]["speech"].splitlines()
+        for segment in segments:
+            _LOGGER.info("Segment: {}".format(segment))
+            if segment.startswith("{"):
+                service_call = json.loads(segment)
+                service = service_call.pop("service")
+                if not service or not service_call:
+                    _LOGGER.info('Missing information')
+                    continue
+                await hass.services.async_call(
+                        service.split(".")[0],
+                        service.split(".")[1],
+                        service_call,
+                        blocking=True,
+                        limit=0.3)
+            else:
+                content = "{}.  {}".format(content, segment)
 
         intent_response = intent.IntentResponse(language=user_input.language)
         intent_response.async_set_speech(content)
@@ -127,10 +70,6 @@ async def async_setup(hass, config):
             response=intent_response, conversation_id=result.conversation_id
         )
 
-        result.response.async_set_speech(
-            )
-
-        return result
 
     OpenAIAgent.async_process = async_process
 
