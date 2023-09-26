@@ -59,10 +59,9 @@ async def async_setup(hass, config):
                         service.split(".")[0],
                         service.split(".")[1],
                         service_call,
-                        blocking=True,
-                        limit=0.3)
+                        blocking=True)
             else:
-                content = "{}.  {}".format(content, segment)
+                content = "{} {}".format(content, segment)
 
         intent_response = intent.IntentResponse(language=user_input.language)
         intent_response.async_set_speech(content)
