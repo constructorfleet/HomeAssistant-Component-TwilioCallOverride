@@ -1,2 +1,2 @@
 voluptuous==0.13.1
-homeassistant==2022.5.3
+homeassistant==2023.9.0
