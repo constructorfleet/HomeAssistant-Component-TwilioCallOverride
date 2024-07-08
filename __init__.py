@@ -3,7 +3,7 @@ import re
 import logging
 
 import voluptuous as vol
-from homeassistant.components.notify.const import ATTR_DATA
+from homeassistant.components.notify.const import ATTR_DATA, ATTR_TARGET
 from homeassistant.core import Context
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import intent
@@ -29,7 +29,7 @@ async def async_setup(hass, config):
 
     from homeassistant.components.twilio_call.notify import TwilioCallNotificationService
 
-    original = OpenAIAgent.send_message
+    original = TwilioCallNotificationService.send_message
     webhook_url = config.get(ATTR_STATUS_WEBHOOK, None)
     call_sid_event = config.get(ATTR_CALL_SID_EVENT, DEFAULT_CALL_SID_EVENT)
 
