@@ -27,6 +27,7 @@ CONFIG_SCHEMA = vol.Schema({
 async def async_setup(hass, config):
     """Set up the twilio_call_override component."""
 
+    from twilio.base.exceptions import TwilioRestException
     from homeassistant.components.twilio_call.notify import TwilioCallNotificationService
 
     original = TwilioCallNotificationService.send_message
@@ -66,7 +67,7 @@ async def async_setup(hass, config):
                     "date_created": call.date_created,
                     "to": call.to,
                     "to_formatted": call.to_formatted,
-                    "from": call._from,
+                    "from": call.from_,
                     "from_formatted": call.from_formatted,
                 })
             except TwilioRestException as exc:
