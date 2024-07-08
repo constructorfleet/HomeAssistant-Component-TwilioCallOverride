@@ -1,14 +1,14 @@
 {
-  "domain": "openai_override",
-  "name": "OpenAI Override",
-  "documentation": "https://github.com/constructorfleet/HomeAssistant-Component-OpenAIOverride",
+  "domain": "twilio_call_override",
+  "name": "Twilio Call Override",
+  "documentation": "https://github.com/constructorfleet/HomeAssistant-Component-TwilioCallOverride",
   "version": "1.0.0",
   "requirements": [
   ],
-  "dependencies": [
-    "conversation"
-  ],
   "codeowners": [
     "@teagan42"
-  ]
+  ],
+  "dependencies": ["twilio"],
+  "iot_class": "cloud_push",
+  "loggers": ["twilio_call_overrides"]
 }

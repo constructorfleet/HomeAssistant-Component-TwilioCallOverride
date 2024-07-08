@@ -3,73 +3,75 @@ import re
 import logging
 
 import voluptuous as vol
-import homeassistant.components.conversation
-from homeassistant.components import conversation
+from homeassistant.components.notify.const import ATTR_DATA
 from homeassistant.core import Context
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import intent
 
 from .const import (
-    ATTR_RESPONSE_PARSER_START,
-    ATTR_RESPONSE_PARSER_END,
-    ATTR_FIRE_INTENT_NAME,
-    DEFAULT_PARSER_TOKEN,
-    DEFAULT_INTENT_NAME,
-    DOMAIN
+    ATTR_STATUS_WEBHOOK,
+    ATTR_CALL_SID_EVENT,
+    DEFAULT_CALL_SID_EVENT
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
-        vol.Required(ATTR_RESPONSE_PARSER_START, default=DEFAULT_PARSER_TOKEN): cv.string,
-        vol.Required(ATTR_RESPONSE_PARSER_END, default=DEFAULT_PARSER_TOKEN): cv.string,
-        vol.Required(ATTR_FIRE_INTENT_NAME, default=DEFAULT_INTENT_NAME): cv.slugify
+        vol.Optional(ATTR_STATUS_WEBHOOK, default=None): cv.url,
+        vol.Required(ATTR_CALL_SID_VARIABLE, default=DEFAULT_CALL_SID_VARIABLE): cv.slugify,
     })
 }, extra=vol.ALLOW_EXTRA)
 
 async def async_setup(hass, config):
-    """Set up the openai_override component."""
+    """Set up the twilio_call_override component."""
 
-    from homeassistant.components.openai_conversation import OpenAIAgent
+    from homeassistant.components.twilio_call import TwilioCallNotificationService
 
-    original = OpenAIAgent.async_process
+    original = OpenAIAgent.send_message
+    webhook_url = config.get(ATTR_STATUS_WEBHOOK, None)
+    call_sid_event = config.get(ATTR_CALL_SID_EVENT, DEFAULT_CALL_SID_EVENT)
 
-    async def async_process(self, user_input: conversation.ConversationInput) -> conversation.ConversationResult:
-        """Handle OpenAI intent."""
-        result = await original(self, user_input)
-        _LOGGER.info("Error code: {}".format(result.response.error_code))
-        if result.response.error_code is not None:
-            return result
+    def send_message(self, message="", **kwargs):
+        """Call to specified target users."""
+        if not (targets := kwargs.get(ATTR_TARGET)):
+            _LOGGER.info("At least 1 target is required")
+            return
 
-        import json
-        _LOGGER.info(json.dumps(result.response.speech))
+        if message.startswith(("http://", "https://")):
+            twimlet_url = message
+        else:
+            twimlet_url = "http://twimlets.com/message?Message="
+            twimlet_url += urllib.parse.quote(message, safe="")
+        
+        if kwargs.get(ATTR_DATA, None) is not None and kwargs[ATTR_DATA].get(ATTR_STATUS_WEBHOOK, None) is not None:
+            status_callback = kwargs[ATTR_DATA][ATTR_STATUS_WEBHOOK]
+            status_callback_method = "POST"
+        elif webhook_url is not None:
+            status_callback = webhook_url
+            status_callback_method = "POST"
+        else:
+            status_callback = None
+            status_callback_method = None
 
-        content = ""
-        segments = result.response.speech["plain"]["speech"].splitlines()
-        for segment in segments:
-            _LOGGER.info("Segment: {}".format(segment))
-            if segment.startswith("{"):
-                service_call = json.loads(segment)
-                service = service_call.pop("service")
-                if not service or not service_call:
-                    _LOGGER.info('Missing information')
-                    continue
-                await hass.services.async_call(
-                        service.split(".")[0],
-                        service.split(".")[1],
-                        service_call,
-                        blocking=True)
-            else:
-                content = "{} {}".format(content, segment)
-
-        intent_response = intent.IntentResponse(language=user_input.language)
-        intent_response.async_set_speech(content)
-        return conversation.ConversationResult(
-            response=intent_response, conversation_id=result.conversation_id
-        )
+        for target in targets:
+            try:
+                call = self.client.calls.create(
+                    to=target, url=twimlet_url, from_=self.from_number,
+                    status_callback=status_callback, status_callback_method=status_callback_method
+                )
+                self.hass.bus.async_fire(call_sid_event, {
+                    "call_sid": call.sid,
+                    "date_created": call.date_created,
+                    "to": call.to,
+                    "to_formatted": call.to_formatted,
+                    "from": call._from,
+                    "from_formatted": call.from_formatted,
+                })
+            except TwilioRestException as exc:
+                _LOGGER.error(exc)
 
 
-    OpenAIAgent.async_process = async_process
+    TwilioCallNotificationService.send_message = send_message
 
     return True
