@@ -27,7 +27,7 @@ CONFIG_SCHEMA = vol.Schema({
 async def async_setup(hass, config):
     """Set up the twilio_call_override component."""
 
-    from homeassistant.components.twilio_call import TwilioCallNotificationService
+    from homeassistant.components.twilio_call.notify import TwilioCallNotificationService
 
     original = OpenAIAgent.send_message
     webhook_url = config.get(ATTR_STATUS_WEBHOOK, None)
