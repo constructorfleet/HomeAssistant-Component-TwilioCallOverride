@@ -9,7 +9,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import intent
 
 from .const import (
-    DOMAIN
+    DOMAIN,
     ATTR_STATUS_WEBHOOK,
     ATTR_CALL_SID_EVENT,
     DEFAULT_CALL_SID_EVENT
