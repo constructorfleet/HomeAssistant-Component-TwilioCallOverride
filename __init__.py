@@ -20,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
         vol.Optional(ATTR_STATUS_WEBHOOK, default=None): cv.url,
-        vol.Required(ATTR_CALL_SID_VARIABLE, default=DEFAULT_CALL_SID_VARIABLE): cv.slugify,
+        vol.Required(ATTR_CALL_SID_EVENT, default=DEFAULT_CALL_SID_EVENT): cv.slugify,
     })
 }, extra=vol.ALLOW_EXTRA)
 
